@@ -130,10 +130,10 @@ void setup_default_actions( SystemState &s ) {
 
 void setup_default_sprites( SystemState &s ) {
     s.c.base = 0x60001;
-    s.c.step = 0x2;
-    s.c.count = 8;
-    s.c.delay = 4;
-    s.c.mode = CM_PING_PONG_UP;
+    s.c.step = 0x1;
+    s.c.count = 16;
+    s.c.delay = 16;
+    s.c.mode = CM_LOOP;
 }
 
 SystemState s = {0};
@@ -334,7 +334,7 @@ int main( int argc, char ** argv ) {
         s.running = false;
     }
 
-    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
     s.r = SDL_CreateRenderer( s.win, -1, s.r_flags );
 
     if ( s.r == nullptr ) {
