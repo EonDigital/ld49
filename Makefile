@@ -14,7 +14,7 @@ DIR_SRC:=src
 EXEC_DD:=$(DIR_BUILD)/dd.out
 EXECS+=$(EXEC_DD)
 # Library support
-LDLIBS_DD:=$(addprefix -l,SDL2 SDL2_image gcov)
+LDLIBS_DD:=$(addprefix -l,SDL2 SDL2_image gcov stdc++)
 # Standard
 CXXFLAGS_DD:=$(CXXFLAGS_STD) $(CXXFLAGS_OPT)
 # Make sure we handle dependencies.
