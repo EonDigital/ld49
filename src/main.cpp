@@ -127,11 +127,6 @@ bool operator==( const SDL_Keysym & a, const SDL_Keysym & b ) {
 // Basic handling
 
 void process_keypress( SystemState &s, const SDL_Keysym & keysym ) {
-    if ( keysym.sym == SDLK_q || keysym.sym == SDLK_ESCAPE ) {
-            s.running = false;
-        return;
-    }
-
     // Trivial search
     for ( size_t i = 0; i < ACT_count; ++i ) {
         if ( s.km.keys[i].key == keysym ) {
@@ -141,8 +136,8 @@ void process_keypress( SystemState &s, const SDL_Keysym & keysym ) {
 }
 
 void process_keyrelease( SystemState &s, const SDL_Keysym & keysym ) {
-    if ( keysym.sym == SDLK_q || keysym.sym == SDLK_ESCAPE ) {
-            s.running = false;
+    if ( keysym.sym == SDLK_ESCAPE ) {
+        s.running = false;
         return;
     }
 
@@ -250,9 +245,10 @@ void render( SystemState &s ) {
     SDL_RenderPresent(s.r);
 }
 
-void throttle( SystemState &s ) {
-    // TODO - Instead of rough 60hz, determine how much time we lost processing the loop and balance.
-    SDL_Delay(16);
+void throttle( SystemState &s, Uint32 ticks ) {
+    if ( ticks < 15 ) {
+        SDL_Delay(16 - ticks);
+    }
 }
 
 
@@ -291,10 +287,12 @@ int main( int argc, char ** argv ) {
     load_resources( s );
 
     while ( s.running ) {
+        Uint32 start = SDL_GetTicks();
         prep( s );
         process_input( s );
         render( s );
-        throttle( s );
+        Uint32 stop = SDL_GetTicks();
+        throttle( s, stop - start );
     }
 
     if ( s.sprites ) {
