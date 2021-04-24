@@ -1,3 +1,7 @@
+/**
+ * Copyright Carl Kelso, Apr 24, 2021.  All Rights Reserved.
+ */
+
 #ifndef LOGGING_H_
 #define LOGGING_H_
 
