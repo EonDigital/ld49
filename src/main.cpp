@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include "logging.h"
 #include "strings.h"
+#include "images.h"
+#include "sprite.h"
 
 enum {
     DEFAULT_HEIGHT = 768,
@@ -45,14 +47,84 @@ typedef struct SystemState_s {
     SDL_Window * win;
     SDL_Renderer * r;
     bool running;
+    Sprite * sprites;
     KeyMap km;
+    int c_x;
+    int c_y;
+    int c_vx;
+    int c_vy;
 } SystemState;
+
+// Actions
+
+static void action_quit( struct SystemState_s &s ) {
+    s.running = false;
+}
+
+static void action_start_up( SystemState &s ) {
+    s.c_vy += -5;
+}
+
+static void action_stop_up( SystemState &s ) {
+    s.c_vy -= -5;
+}
+
+static void action_start_down( SystemState &s ) {
+    s.c_vy += 5;
+}
+
+static void action_stop_down( SystemState &s ) {
+    s.c_vy -= 5;
+}
+
+static void action_start_right( SystemState &s ) {
+    s.c_vx += 5;
+}
+
+static void action_stop_right( SystemState &s ) {
+    s.c_vx -= 5;
+}
+
+static void action_start_left( SystemState &s ) {
+    s.c_vx += -5;
+}
+
+static void action_stop_left( SystemState &s ) {
+    s.c_vx -= -5;
+}
+
+void setup_default_actions( SystemState &s ) {
+    KeyMap & km = s.km;
+    km.keys[ACT_QUIT].key.sym = SDLK_q;
+    km.keys[ACT_QUIT].action_release = action_quit;
+
+    km.keys[ACT_UP].key.sym = SDLK_UP;
+    km.keys[ACT_UP].action_press = action_start_up;
+    km.keys[ACT_UP].action_release = action_stop_up;
+
+    km.keys[ACT_DOWN].key.sym = SDLK_DOWN;
+    km.keys[ACT_DOWN].action_press = action_start_down;
+    km.keys[ACT_DOWN].action_release = action_stop_down;
+
+    km.keys[ACT_RIGHT].key.sym = SDLK_RIGHT;
+    km.keys[ACT_RIGHT].action_press = action_start_right;
+    km.keys[ACT_RIGHT].action_release = action_stop_right;
+
+    km.keys[ACT_LEFT].key.sym = SDLK_LEFT;
+    km.keys[ACT_LEFT].action_press = action_start_left;
+    km.keys[ACT_LEFT].action_release = action_stop_left;
+}
 
 SystemState s = {0};
 
+// Convenience
+
 bool operator==( const SDL_Keysym & a, const SDL_Keysym & b ) {
-    return ( a.sym == b.sym ) && ( a.mod == b.mod );
+    int mod_mask = KMOD_CTRL | KMOD_ALT | KMOD_SHIFT;
+    return ( a.sym == b.sym ) && ( ( a.mod & mod_mask ) == ( b.mod & mod_mask ) );
 }
+
+// Basic handling
 
 void process_keypress( SystemState &s, const SDL_Keysym & keysym ) {
     if ( keysym.sym == SDLK_q || keysym.sym == SDLK_ESCAPE ) {
@@ -82,9 +154,19 @@ void process_keyrelease( SystemState &s, const SDL_Keysym & keysym ) {
     }
 }
 
+void load_resources( SystemState &s ) {
+    s.sprites = new UniformSprite( s.r, "res/sprites.png", 16, 16 );
+}
+
+/**
+ * Setup anything that should render before checking keyboard input to accelerate reaction time.
+ */
 void prep( SystemState &s ) {
 }
 
+/**
+ * Handle all user input
+ */
 void process_input( SystemState &s ) {
     SDL_Event e;
     for ( size_t i = 0; i < MAX_EVENT_COUNT && SDL_PollEvent( &e ); ++i ) {
@@ -96,8 +178,15 @@ void process_input( SystemState &s ) {
             return;
 
         case SDL_KEYUP:
+            if ( !e.key.repeat ) {
+                process_keyrelease(s, e.key.keysym);
+            }
+            break;
+
         case SDL_KEYDOWN:
-            process_keypress(s, e.key.keysym);
+            if ( !e.key.repeat ) {
+                process_keypress(s, e.key.keysym);
+            }
             break;
 
         // Motion support
@@ -154,6 +243,11 @@ void process_input( SystemState &s ) {
 }
 
 void render( SystemState &s ) {
+    SDL_RenderClear(s.r);
+    s.c_x += s.c_vx;
+    s.c_y += s.c_vy;
+    s.sprites->render(0x20001, s.c_x, s.c_y);
+    SDL_RenderPresent(s.r);
 }
 
 void throttle( SystemState &s ) {
@@ -169,6 +263,7 @@ int main( int argc, char ** argv ) {
     s.w_flags = SDL_WINDOW_RESIZABLE;
     s.r_flags = SDL_RENDERER_ACCELERATED;
     s.running = true;
+    setup_default_actions(s);
 
     SDL_SetMainReady();
     if ( SDL_Init( SDL_INIT_EVERYTHING ) != 0 ) {
@@ -191,13 +286,24 @@ int main( int argc, char ** argv ) {
         s.running = false;
     }
 
-    printf("Hello World\n");
+    int images_failed = init_sdl_images();
+
+    load_resources( s );
 
     while ( s.running ) {
         prep( s );
         process_input( s );
         render( s );
         throttle( s );
+    }
+
+    if ( s.sprites ) {
+        delete( s.sprites );
+        s.sprites = nullptr;
+    }
+
+    if ( !images_failed ) {
+        cleanup_sdl_images();
     }
 
     if ( s.r ) {
