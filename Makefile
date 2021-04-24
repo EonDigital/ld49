@@ -4,6 +4,7 @@
 
 CXXFLAGS_STD:=-std=c++14
 CXXFLAGS_OPT:=-Os -g --coverage
+CXXFLAGS_WARN:=-Wall -Werror
 CPPFLAGS_DEPS:=-MMD -MP
 
 DIR_BUILD:=build
