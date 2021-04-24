@@ -1,4 +1,4 @@
-.PHONY: all release clean run_dd
+.PHONY: all release clean run_dd coverage
 .DEFAULT_GOAL:=all
 .EXTRA_PREREQS=Makefile
 
@@ -57,3 +57,12 @@ run_dd :
 	
 clean :
 	rm -r $(DIR_BUILD)
+
+coverage : build/coverage/index.htm
+
+build/coverage/index.htm : build/coverage.info
+	genhtml build/coverage.info -o build/coverage
+
+build/coverage.info : $(OBJS:%.o=%.gcda)
+	lcov -d build -b . -c -o build/coverage.info
+	
