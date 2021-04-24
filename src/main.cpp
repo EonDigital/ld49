@@ -131,7 +131,7 @@ void setup_default_actions( SystemState &s ) {
 void setup_default_sprites( SystemState &s ) {
     s.c.base = 0x60001;
     s.c.step = 0x1;
-    s.c.count = 16;
+    s.c.count = 15;
     s.c.delay = 16;
     s.c.mode = CM_LOOP;
 }
