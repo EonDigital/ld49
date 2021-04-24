@@ -4,8 +4,8 @@
 #include <cstdio>
 #include "ansi.h"
 
-#define LOG_STD_PREFIX  " %d: "
-#define LOG_STD_POSTFIX "\n", __LINE__
+#define LOG_STD_PREFIX  " %s:%d: "
+#define LOG_STD_POSTFIX "\n", __FILE__, __LINE__
 
 #if 0
 # define LOG_COLOR( code, color ) C_##color code C_RESET
