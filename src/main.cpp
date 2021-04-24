@@ -5,6 +5,7 @@
 #include "strings.h"
 #include "images.h"
 #include "sprite.h"
+#include "sfx.h"
 
 enum {
     DEFAULT_HEIGHT = 768,
@@ -82,6 +83,7 @@ typedef struct SystemState_s {
     int c_ax;
     int c_ay;
     Char c;
+    Sfx jump_sfx;
 } SystemState;
 
 // Actions
@@ -110,10 +112,15 @@ static void action_stop_right( SystemState &s, int val ) {
 static void action_start_jump( SystemState &s, int val ) {
     s.c_vy = val;
     s.c_ay = FR_GRAV;
+    s.jump_sfx.play();
 }
 
 static void action_stop_jump( SystemState &s, int val ) {
     s.c_vy = 0;
+    s.c_ay = 0;
+}
+
+static void action_land( SystemState &s, int val ) {
     s.c_ay = 0;
 }
 
@@ -192,6 +199,8 @@ void process_keyrelease( SystemState &s, const SDL_Keysym & keysym ) {
 
 void load_resources( SystemState &s ) {
     s.sprites = new UniformSprite( s.r, "res/sprites.png", 16, 16 );
+
+    s.jump_sfx.load("res/jump1.ogg");
 }
 
 void step_animation( Char & c ) {
@@ -336,19 +345,18 @@ int main( int argc, char ** argv ) {
     s.height = DEFAULT_HEIGHT;
     s.width = DEFAULT_WIDTH;
     s.w_flags = SDL_WINDOW_RESIZABLE;
-    s.r_flags = SDL_RENDERER_ACCELERATED;
+    s.r_flags = SDL_RENDERER_ACCELERATED; // SDL_RENDERER_PRESENTVSYNC - consider this
     s.running = true;
     setup_default_actions(s);
     setup_default_sprites(s);
 
     SDL_SetMainReady();
-    if ( SDL_Init( SDL_INIT_EVERYTHING ) != 0 ) {
+    if ( SDL_Init( SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_EVENTS | SDL_INIT_AUDIO ) != 0 ) {
         LOG_ERROR( "Failed to get SDL running %s", SDL_GetError() );
         s.running = false;
     }
 
     s.win = SDL_CreateWindow( str_title, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, s.width, s.height, s.w_flags );
-
     if ( s.win == nullptr ) {
         LOG_ERROR( "Failed to create SDL Window %s", SDL_GetError() );
         s.running = false;
@@ -362,6 +370,14 @@ int main( int argc, char ** argv ) {
     }
 
     int images_failed = init_sdl_images();
+
+    // TODO - move to its own module.
+    bool audio_setup = true;
+    if ( Mix_OpenAudio( 44100, MIX_DEFAULT_FORMAT, 2, 2048) ) {
+        LOG_ERROR( "Sound failed to load %s", Mix_GetError() );
+        s.running = false;
+        audio_setup = false;
+    }
 
     load_resources( s );
 
@@ -377,6 +393,10 @@ int main( int argc, char ** argv ) {
     if ( s.sprites ) {
         delete( s.sprites );
         s.sprites = nullptr;
+    }
+
+    if ( audio_setup ) {
+        Mix_CloseAudio();
     }
 
     if ( !images_failed ) {
