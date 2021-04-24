@@ -36,3 +36,6 @@
 
 # Compiler output
 /build
+
+# eclipse
+/.settings
