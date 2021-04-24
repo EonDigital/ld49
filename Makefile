@@ -9,7 +9,10 @@ EXEC_DD:=$(DIR_BUILD)/dd.out
 EXECS+=$(EXEC_DD)
 LDLIBS_DD:=$(addprefix -l,SDL2)
 CXXFLAGS_DD:=-std=c++14
-CPPFLAGS_DD:=-MMD
+# Make sure we handle dependencies.
+# MMD gets .d files, MP adds header handling
+# To move the file to a uniform place, add -MF
+CPPFLAGS_DD:=-MMD -MP
 
 print=$(info $(1) $($(1)))
 
