@@ -46,7 +46,9 @@ void UniformSprite::render( size_t index, int x, int y ) {
     clip.w = sprite_width;
     clip.h = sprite_height;
 
-    SDL_Rect dest = { x, y, clip.w, clip.h };
+    int sf = 2;
+
+    SDL_Rect dest = { x, y, clip.w * sf, clip.h * sf};
 
     SDL_RenderCopy(m_r, m_sheet, &clip, &dest);
 }

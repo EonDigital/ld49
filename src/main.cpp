@@ -15,14 +15,17 @@ enum {
 
 struct SystemState_s;
 
-typedef void (*action_fp)( struct SystemState_s &s );
-static void action_noop( struct SystemState_s &s ) {
+typedef void (*action_fp)( struct SystemState_s &s, int val );
+static void action_noop( struct SystemState_s &s, int val ) {
+    (void)s;
+    (void)val;
 }
 
 typedef struct {
     SDL_Keysym key;
     action_fp action_press = action_noop;
     action_fp action_release = action_noop;
+    int val = 0;
 } KeyMapping;
 
 enum {
@@ -39,6 +42,24 @@ typedef struct {
     KeyMapping keys[ACT_count];
 } KeyMap;
 
+enum CharMode : Uint32 {
+    CM_ONE_SHOT,
+    CM_LOOP,
+    CM_PING_PONG_UP,
+    CM_PING_PONG_DOWN,
+};
+
+typedef struct {
+    Uint32 base;
+    Uint32 step;
+
+    Uint32 count : 10; ///< The
+    Uint32 idx : 10; ///< The current frame index
+    Uint32 delay : 5; ///< The amount to slow the animation
+    Uint32 ss : 5; ///< The number of steps
+    CharMode mode : 2; ///< The current frame mode
+} Char;
+
 typedef struct SystemState_s {
     int width;
     int height;
@@ -53,44 +74,32 @@ typedef struct SystemState_s {
     int c_y;
     int c_vx;
     int c_vy;
+    int c_ax;
+    int c_ay;
+    Char c;
 } SystemState;
 
 // Actions
 
-static void action_quit( struct SystemState_s &s ) {
+static void action_quit( struct SystemState_s &s, int val ) {
+    (void) val;
     s.running = false;
 }
 
-static void action_start_up( SystemState &s ) {
-    s.c_vy += -5;
+static void action_start_down( SystemState &s, int val ) {
+    s.c_vy += val;
 }
 
-static void action_stop_up( SystemState &s ) {
-    s.c_vy -= -5;
+static void action_stop_down( SystemState &s, int val ) {
+    s.c_vy -= val;
 }
 
-static void action_start_down( SystemState &s ) {
-    s.c_vy += 5;
+static void action_start_right( SystemState &s, int val ) {
+    s.c_vx += val;
 }
 
-static void action_stop_down( SystemState &s ) {
-    s.c_vy -= 5;
-}
-
-static void action_start_right( SystemState &s ) {
-    s.c_vx += 5;
-}
-
-static void action_stop_right( SystemState &s ) {
-    s.c_vx -= 5;
-}
-
-static void action_start_left( SystemState &s ) {
-    s.c_vx += -5;
-}
-
-static void action_stop_left( SystemState &s ) {
-    s.c_vx -= -5;
+static void action_stop_right( SystemState &s, int val ) {
+    s.c_vx -= val;
 }
 
 void setup_default_actions( SystemState &s ) {
@@ -99,20 +108,32 @@ void setup_default_actions( SystemState &s ) {
     km.keys[ACT_QUIT].action_release = action_quit;
 
     km.keys[ACT_UP].key.sym = SDLK_UP;
-    km.keys[ACT_UP].action_press = action_start_up;
-    km.keys[ACT_UP].action_release = action_stop_up;
+    km.keys[ACT_UP].action_press = action_start_down;
+    km.keys[ACT_UP].action_release = action_stop_down;
+    km.keys[ACT_UP].val = -5;
 
     km.keys[ACT_DOWN].key.sym = SDLK_DOWN;
     km.keys[ACT_DOWN].action_press = action_start_down;
     km.keys[ACT_DOWN].action_release = action_stop_down;
+    km.keys[ACT_DOWN].val = 5;
 
     km.keys[ACT_RIGHT].key.sym = SDLK_RIGHT;
     km.keys[ACT_RIGHT].action_press = action_start_right;
     km.keys[ACT_RIGHT].action_release = action_stop_right;
+    km.keys[ACT_RIGHT].val = 5;
 
     km.keys[ACT_LEFT].key.sym = SDLK_LEFT;
-    km.keys[ACT_LEFT].action_press = action_start_left;
-    km.keys[ACT_LEFT].action_release = action_stop_left;
+    km.keys[ACT_LEFT].action_press = action_start_right;
+    km.keys[ACT_LEFT].action_release = action_stop_right;
+    km.keys[ACT_LEFT].val = -5;
+}
+
+void setup_default_sprites( SystemState &s ) {
+    s.c.base = 0x60001;
+    s.c.step = 0x2;
+    s.c.count = 8;
+    s.c.delay = 4;
+    s.c.mode = CM_PING_PONG_UP;
 }
 
 SystemState s = {0};
@@ -130,7 +151,7 @@ void process_keypress( SystemState &s, const SDL_Keysym & keysym ) {
     // Trivial search
     for ( size_t i = 0; i < ACT_count; ++i ) {
         if ( s.km.keys[i].key == keysym ) {
-            s.km.keys[i].action_press( s );
+            s.km.keys[i].action_press( s, s.km.keys[i].val );
         }
     }
 }
@@ -144,7 +165,7 @@ void process_keyrelease( SystemState &s, const SDL_Keysym & keysym ) {
     // Trivial search
     for ( size_t i = 0; i < ACT_count; ++i ) {
         if ( s.km.keys[i].key == keysym ) {
-            s.km.keys[i].action_release( s );
+            s.km.keys[i].action_release( s, s.km.keys[i].val );
         }
     }
 }
@@ -153,10 +174,48 @@ void load_resources( SystemState &s ) {
     s.sprites = new UniformSprite( s.r, "res/sprites.png", 16, 16 );
 }
 
+void step_animation( Char & c ) {
+    if ( ++c.ss < c.delay ) {
+        return;
+    }
+    c.ss = 0;
+    switch ( c.mode ) {
+    case CM_LOOP:
+        if ( ++c.idx >= c.count ) {
+            c.idx = 0;
+        } break;
+
+    case CM_ONE_SHOT:
+        if ( c.idx + 1 < c.count ) {
+            ++c.idx;
+        } break;
+
+    case CM_PING_PONG_UP:
+        if ( c.idx + 1 < c.count ) {
+            ++c.idx;
+        } else {
+            c.mode = CM_PING_PONG_DOWN;
+        } break;
+
+    case CM_PING_PONG_DOWN:
+        if ( c.idx - 1 > 0 ) {
+            --c.idx;
+        } else {
+            --c.idx;
+            c.mode = CM_PING_PONG_UP;
+        }
+    }
+}
+
 /**
  * Setup anything that should render before checking keyboard input to accelerate reaction time.
  */
 void prep( SystemState &s ) {
+    step_animation( s.c );
+    s.c_x += s.c_vx + s.c_ax / 2;
+    s.c_y += s.c_vy + s.c_ay / 2;
+    s.c_vx += s.c_ax;
+    s.c_vy += s.c_ay;
 }
 
 /**
@@ -239,9 +298,9 @@ void process_input( SystemState &s ) {
 
 void render( SystemState &s ) {
     SDL_RenderClear(s.r);
-    s.c_x += s.c_vx;
-    s.c_y += s.c_vy;
-    s.sprites->render(0x20001, s.c_x, s.c_y);
+    // Render the current character sprite.
+    Uint32 char_idx = s.c.base + s.c.step * s.c.idx;
+    s.sprites->render(char_idx, s.c_x, s.c_y);
     SDL_RenderPresent(s.r);
 }
 
@@ -260,6 +319,7 @@ int main( int argc, char ** argv ) {
     s.r_flags = SDL_RENDERER_ACCELERATED;
     s.running = true;
     setup_default_actions(s);
+    setup_default_sprites(s);
 
     SDL_SetMainReady();
     if ( SDL_Init( SDL_INIT_EVERYTHING ) != 0 ) {
