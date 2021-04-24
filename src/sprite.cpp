@@ -13,11 +13,13 @@ Sprite::Sprite( SDL_Renderer * r, const char name[] )
 }
 
 void Sprite::load_sheet( const char * name ) {
-    SDL_Surface * sheet = load_image(name);
-    if ( !sheet ) {
+    SDL_Surface * surface = load_image(name);
+    if ( !surface ) {
         return;
     }
-    SDL_Texture * tex = SDL_CreateTextureFromSurface(m_r, sheet);
+    // Choose 1 1 1 as a magic invisible color we're unlikely to use anywhere else
+    SDL_SetColorKey(surface, true, SDL_MapRGB(surface->format, 1, 1, 1));
+    SDL_Texture * tex = SDL_CreateTextureFromSurface(m_r, surface);
     if ( tex ) {
         if ( m_sheet ) {
             SDL_DestroyTexture(m_sheet);
