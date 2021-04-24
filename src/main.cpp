@@ -11,6 +11,10 @@ enum {
     DEFAULT_WIDTH  = 1024,
 
     MAX_EVENT_COUNT = 10000, ///< Something obscenely large.  No spinlocks.
+
+    GRAVITY = 160, /// 16 pixels ~= 1 meter, 10 meters per second, down is positive.
+    FRAMERATE = 60,
+    FR_GRAV = GRAVITY / FRAMERATE,
 };
 
 struct SystemState_s;
@@ -34,6 +38,7 @@ enum {
     ACT_DOWN,
     ACT_LEFT,
     ACT_RIGHT,
+    ACT_JUMP,
 
     ACT_count, // The number of actions
 };
@@ -102,6 +107,16 @@ static void action_stop_right( SystemState &s, int val ) {
     s.c_vx -= val;
 }
 
+static void action_start_jump( SystemState &s, int val ) {
+    s.c_vy = val;
+    s.c_ay = FR_GRAV;
+}
+
+static void action_stop_jump( SystemState &s, int val ) {
+    s.c_vy = 0;
+    s.c_ay = 0;
+}
+
 void setup_default_actions( SystemState &s ) {
     KeyMap & km = s.km;
     km.keys[ACT_QUIT].key.sym = SDLK_q;
@@ -126,6 +141,11 @@ void setup_default_actions( SystemState &s ) {
     km.keys[ACT_LEFT].action_press = action_start_right;
     km.keys[ACT_LEFT].action_release = action_stop_right;
     km.keys[ACT_LEFT].val = -5;
+
+    km.keys[ACT_JUMP].key.sym = SDLK_SPACE;
+    km.keys[ACT_JUMP].action_press = action_start_jump;
+    km.keys[ACT_JUMP].action_release = action_stop_jump;
+    km.keys[ACT_JUMP].val = -25;
 }
 
 void setup_default_sprites( SystemState &s ) {
@@ -336,7 +356,6 @@ int main( int argc, char ** argv ) {
 
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
     s.r = SDL_CreateRenderer( s.win, -1, s.r_flags );
-
     if ( s.r == nullptr ) {
         LOG_ERROR( "Failed to create Renderer %s", SDL_GetError() );
         s.running = false;
