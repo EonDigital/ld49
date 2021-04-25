@@ -397,6 +397,7 @@ int main( int argc, char ** argv ) {
 
     if ( audio_setup ) {
         Mix_CloseAudio();
+        Mix_Quit();
     }
 
     if ( !images_failed ) {
@@ -412,6 +413,7 @@ int main( int argc, char ** argv ) {
         SDL_DestroyWindow(s.win);
         s.win = nullptr;
     }
+
     SDL_Quit();
 
     return 0;

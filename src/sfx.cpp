@@ -68,6 +68,7 @@ void Sfx::channel_finished(int channel) {
 Sfx::~Sfx() {
     if ( m_chunk ) {
         Mix_FreeChunk(m_chunk);
+        m_chunk = nullptr;
     }
 }
 
