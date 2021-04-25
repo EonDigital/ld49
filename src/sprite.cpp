@@ -40,8 +40,8 @@ UniformSprite::UniformSprite( SDL_Renderer * r, const char * name, int width, in
 
 void UniformSprite::render( size_t index, int x, int y ) {
 
-    int s_x = index & 0xFFFF;
-    int s_y = (index >> 16) & 0xFFFF;
+    int s_x = index & 0xF;
+    int s_y = (index >> 4) & 0xF;
     SDL_Rect clip;
     clip.x = s_x * sprite_width;
     clip.y = s_y * sprite_height;

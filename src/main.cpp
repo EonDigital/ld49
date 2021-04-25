@@ -56,8 +56,8 @@ enum CharMode : Uint32 {
 };
 
 typedef struct {
-    Uint32 base;
-    Uint32 step;
+    Uint8 base;
+    Uint8 step;
 
     Uint32 count : 10; ///< The
     Uint32 idx : 10; ///< The current frame index
@@ -156,7 +156,7 @@ void setup_default_actions( SystemState &s ) {
 }
 
 void setup_default_sprites( SystemState &s ) {
-    s.c.base = 0x60001;
+    s.c.base = 0x61;
     s.c.step = 0x1;
     s.c.count = 15;
     s.c.delay = 16;
