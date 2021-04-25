@@ -6,6 +6,7 @@
 #include "images.h"
 #include "sprite.h"
 #include "sfx.h"
+#include "spriteatlas.h"
 
 enum {
     DEFAULT_HEIGHT = 768,
@@ -74,6 +75,7 @@ typedef struct SystemState_s {
     SDL_Window * win;
     SDL_Renderer * r;
     bool running;
+    SpriteAtlas * atlas;
     Sprite * sprites;
     KeyMap km;
     int c_x;
@@ -198,9 +200,23 @@ void process_keyrelease( SystemState &s, const SDL_Keysym & keysym ) {
 }
 
 void load_resources( SystemState &s ) {
-    s.sprites = new UniformSprite( s.r, "res/sprites.png", 16, 16 );
+    s.atlas = new SpriteAtlas(s.r, "res/sprites.png");
+    s.sprites = new UniformSprite( s.r, s.atlas, 16, 16 );
 
     s.jump_sfx.load("res/jump1.ogg");
+}
+
+void free_resources( SystemState &s ) {
+
+    if ( s.sprites ) {
+        delete( s.sprites );
+        s.sprites = nullptr;
+    }
+
+    if ( s.atlas ) {
+        delete( s.atlas );
+        s.atlas = nullptr;
+    }
 }
 
 void step_animation( Char & c ) {
@@ -390,10 +406,7 @@ int main( int argc, char ** argv ) {
         throttle( s, stop - start );
     }
 
-    if ( s.sprites ) {
-        delete( s.sprites );
-        s.sprites = nullptr;
-    }
+    free_resources( s );
 
     if ( audio_setup ) {
         Mix_CloseAudio();

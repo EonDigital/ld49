@@ -4,41 +4,26 @@
 
 
 #include "sprite.h"
-#include "images.h"
 
-Sprite::Sprite( SDL_Renderer * r, const char name[] )
-    : m_r(r), m_sheet(nullptr)
+
+// Set the size of an artistic pixel, in real pixels.
+enum { SPRITE_SF = 4 };
+
+Sprite::Sprite( SDL_Renderer * r, SpriteAtlas * p_atlas )
+    : m_r(r), mp_atlas(p_atlas)
 {
-    load_sheet( name );
-}
 
-void Sprite::load_sheet( const char * name ) {
-    SDL_Surface * surface = load_image(name);
-    if ( !surface ) {
-        return;
-    }
-    // Choose 1 1 1 as a magic invisible color we're unlikely to use anywhere else
-    SDL_SetColorKey(surface, true, SDL_MapRGB(surface->format, 1, 1, 1));
-    SDL_Texture * tex = SDL_CreateTextureFromSurface(m_r, surface);
-    if ( tex ) {
-        if ( m_sheet ) {
-            SDL_DestroyTexture(m_sheet);
-        }
-        m_sheet = tex;
-    }
 }
 
 Sprite::~Sprite() {
-    if (m_sheet) {
-        SDL_DestroyTexture(m_sheet);
-    }
 }
 
-UniformSprite::UniformSprite( SDL_Renderer * r, const char * name, int width, int height ) :
-    Sprite(r, name), sprite_width(width), sprite_height(height) {
+UniformSprite::UniformSprite( SDL_Renderer * r, SpriteAtlas * p_atlas, int width, int height ) :
+    Sprite(r, p_atlas), sprite_width(width), sprite_height(height) {
 }
 
 void UniformSprite::render( size_t index, int x, int y ) {
+    if ( !mp_atlas || !mp_atlas->m_sheet ) { return; }
 
     int s_x = index & 0xF;
     int s_y = (index >> 4) & 0xF;
@@ -48,11 +33,11 @@ void UniformSprite::render( size_t index, int x, int y ) {
     clip.w = sprite_width;
     clip.h = sprite_height;
 
-    int sf = 2;
+    int sf = SPRITE_SF;
 
     SDL_Rect dest = { x, y, clip.w * sf, clip.h * sf};
 
-    SDL_RenderCopy(m_r, m_sheet, &clip, &dest);
+    SDL_RenderCopy(m_r, mp_atlas->m_sheet, &clip, &dest);
 }
 
 UniformSprite::~UniformSprite() {}
