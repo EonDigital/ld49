@@ -6,8 +6,10 @@
 #define SRC_STAGE_H_
 
 #include "spriteatlas.h"
+#include "point.h"
 
 enum { chunk_height = 12, chunk_width = 12 };
+
 
 class Stage {
 protected:
@@ -26,6 +28,7 @@ public:
     virtual int x();
     virtual int y();
     virtual SDL_Rect & view();
+    virtual bool test_collision( SDL_Rect & r, iv2_t & delta ) = 0;
 };
 
 /// Use this for now to hold the entire stage we build.
@@ -40,6 +43,7 @@ public:
     CompleteStage( Sprite * p_sprite, size_t width, size_t height, const char * data, int x = 0, int y = 0 );
     void move_camera( int delta_x, int delta_y ) override;
     void render() override;
+    bool test_collision( SDL_Rect & r, iv2_t & delta ) override;
     virtual ~CompleteStage() = default;
 };
 

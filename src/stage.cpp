@@ -8,6 +8,7 @@
 #include <SDL2/SDL_rect.h>
 
 #include "utilities.h"
+#include "collision.h"
 
 Stage::Stage( Sprite * p_sprite, int x, int y )
         : m_x(x), m_y(y), mp_sprite(p_sprite)
@@ -109,3 +110,63 @@ void CompleteStage::render() {
         }
     }
 }
+
+// XXX - this is a total hack.  Find a better way to wire in collisions
+static bool can_collide( char tile ) {
+    return ( tile > ' ' && tile <= '~' );
+}
+
+
+bool CompleteStage::test_collision( SDL_Rect & rect, iv2_t & delta ) {
+    // TODO Find a better place to manage collision detection
+    SDL_Rect tile = {
+         0, 0, mp_sprite->width(0), mp_sprite->height(0)
+    };
+
+    SDL_Rect range = rect;
+    if ( delta.x < 0 ) {
+        range.x += delta.x;
+        range.w -= delta.x;
+    } else {
+        range.w += delta.x;
+    }
+
+    if ( delta.y < 0 ) {
+        range.y += delta.y;
+        range.h -= delta.y;
+    } else {
+        range.h += delta.y;
+    }
+
+    const int trunc_y = (range.y < 0) ? ( tile.h - 1 ) : 0;
+    const int trunc_x = (range.x < 0) ? ( tile.w - 1 ) : 0;
+
+    const int start_yi = ( range.y - trunc_y ) / tile.h;
+    const int start_xi = ( range.x - trunc_x ) / tile.w;
+
+    const int start_y = start_yi * tile.h;
+    const int start_x = start_xi * tile.w;
+
+    const int end_y = start_y + range.h + tile.h - 1;
+    const int end_x = start_x + range.w + tile.w - 1;
+
+    const int max_height = m_height - 1;
+    const int max_width = m_width - 1;
+
+    bool collision = false;
+
+    for ( int y = start_y, yi = start_yi; y < end_y; y += tile.h, ++yi ) {
+        int yn = clamp( 0, yi, max_height );
+        tile.y = y;
+        for ( int x = start_x, xi = start_xi; x < end_x; x += tile.w, ++xi ) {
+            int xn = clamp( 0, xi, max_width );
+            if ( !can_collide( m_data[yn * m_width + xn ] ) ) {
+                continue;
+            }
+            tile.x = x;
+            collision |= collision_aabb_aabb_dt( rect, tile, delta );
+        }
+    }
+    return collision;
+}
+

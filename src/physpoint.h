@@ -5,28 +5,9 @@
 #ifndef SRC_PHYSPOINT_H_
 #define SRC_PHYSPOINT_H_
 
+#include "point.h"
 
-typedef struct iv2_s {
-    int x, y;
-} iv2_t;
-
-static inline iv2_t operator+( const iv2_t & a, const iv2_t & b ) {
-    return iv2_t{ a.x+b.x, a.y+b.y };
-}
-
-static inline iv2_t operator*( const iv2_t & a, int b ) {
-    return iv2_t{ a.x*b, a.y*b };
-}
-
-static inline iv2_t operator/( const iv2_t & a, int b ) {
-    return iv2_t{ a.x/b, a.y/b };
-}
-
-static inline iv2_t & operator+=( iv2_t & a, const iv2_t & b ) {
-    a.x += b.x;
-    a.y += b.y;
-    return a;
-}
+typedef int q8_t;
 
 class PhysPoint {
 public:
@@ -34,17 +15,17 @@ public:
     iv2_t v;
     iv2_t a;
 
-    iv2_t get_delta() {
-        return v + a / 2;
+    iv2_t get_delta( q8_t dt ) {
+        return ( v + a * dt / ( 2 * 256 ) ) * dt / 256;
     }
 
-    iv2_t get_destination() {
-        return p + v + a / 2;
+    iv2_t get_destination( q8_t dt ) {
+        return p + get_delta( dt );
     }
 
-    void advance() {
-        p += v + a / 2;
-        v += a;
+    void advance( q8_t dt ) {
+        p += get_delta( dt );
+        v += a * dt / 256;
     }
 };
 

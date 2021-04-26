@@ -145,8 +145,8 @@ static void action_start_jump( SystemState &s, int val ) {
 }
 
 static void action_stop_jump( SystemState &s, int val ) {
-    s.c.phys.v.y = 0;
-    s.c_flags |= FLAGS_ON_GROUND;
+//    s.c.phys.v.y = 0;
+//    s.c_flags |= FLAGS_ON_GROUND;
 }
 
 static void action_land( SystemState &s, int val ) {
@@ -194,7 +194,7 @@ void setup_default_sprites( SystemState &s ) {
     s.c.jump = new SlowSequencer( 16, new OneShotSequencer( 0xD, 0x1, 3 ) );
     s.c.stand = new SlowSequencer( 16, new OneShotSequencer( 0x3, 0x1, 5 ) );
     s.c.current_animation = s.c.walk;
-    s.c_flags = FLAGS_STANDARD_GRAVITY | FLAGS_ON_GROUND | FLAGS_CAMERA_TRACKING_X;
+    s.c_flags = FLAGS_STANDARD_GRAVITY | FLAGS_CAMERA_TRACKING_X; // | FLAGS_ON_GROUND
 }
 
 void cleanup_default_sprites( SystemState &s ) {
@@ -240,14 +240,13 @@ void process_keyrelease( SystemState &s, const SDL_Keysym & keysym ) {
 
 const char map[] =
   // 012345678901234567890123456789
-    "*                             " // 0
+    "                              " // 0
     "                              " // 1
     "                              " // 2
     "                              " // 3
-    "W\xE1\xE2\xE3\xE4\xD1\xD2\xD3\xD4" "SSDDDDDDD\\       /DDD" // 4
-    "W\xE1\xE2\xE3\xE4\xD1\xD2\xD3\xD4" "SXXXXXXXXXDDDDDDDXXXX" // 5
-    "W\xE1\xE2\xE3\xE4\xD1\xD2\xD3\xD4" "XXXXXXXXXXXXXXXXXXXXX"; // 6
-
+    "abcdefghiSSSDDDDD\\        /DDD" // 4
+    "abcdefghiSXXXXXXXXXDDDDDDDXXXX" // 5
+    "abcdefghiXXXXXXXXXXXXXXXXXXXXX"; // 6
 
 void load_resources( SystemState &s ) {
     s.atlas = new SpriteAtlas( s.r, "res/sprites.png" );
@@ -285,12 +284,26 @@ void prepare_scene( SystemState &s ) {
         break;
     }
 
+//    int dt = 256 / FRAMERATE;
+    int dt = 256;
+
     s.c.current_animation->get_next();
-    iv2_t delta = s.c.phys.get_delta(); // To check for collisions and control the camera
+    iv2_t delta = s.c.phys.get_delta( dt ); // To check for collisions and control the camera
 
     // Handle collision detection here
+    SDL_Rect char_rect = { s.c.phys.p.x, s.c.phys.p.y, s.char_sprites->width(0), s.char_sprites->height(0) };
+    bool collision = s.stage->test_collision( char_rect, delta );
 
-    s.c.phys.advance(); // To prep for the next frame.
+    // To prep for the next frame.
+    if ( collision ) {
+        action_land(s, 0); // XXX - nominally, we reduce velocity relative to our impact direction.  We have artifacts when moving and jumping.
+        s.c.phys.v.x = 0;
+        s.c.phys.v.y = 0;
+        s.c.phys.p += delta;
+        s.c_flags |= FLAGS_ON_GROUND;
+    } else {
+        s.c.phys.advance( dt );
+    }
 
     // Camera Tracking
     if ( s.c_flags & FLAGS_CAMERA_TRACKING_MASK ) {
