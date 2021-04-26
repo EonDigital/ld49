@@ -10,6 +10,7 @@
 #include "sequencer.h"
 #include "utilities.h"
 #include "stage.h"
+#include "physpoint.h"
 
 enum {
     DEFAULT_HEIGHT = 768,
@@ -66,6 +67,7 @@ typedef struct {
     Sequencer * walk;
     Sequencer * jump;
     Sequencer * stand;
+    PhysPoint phys;
 } Char;
 
 typedef uint8_t char_flags_t;
@@ -100,13 +102,7 @@ typedef struct SystemState_s {
     Stage * stage;
 
     KeyMap km;
-    int c_x;
-    int c_y;
     SDL_RendererFlip c_f;
-    int c_vx;
-    int c_vy;
-    int c_ax;
-    int c_ay;
     char_flags_t c_flags;
     Char c;
     struct {
@@ -123,38 +119,38 @@ static void action_quit( struct SystemState_s &s, int val ) {
 }
 
 static void action_start_down( SystemState &s, int val ) {
-    s.c_vy += val;
+    s.c.phys.v.y += val;
     s.c_flags |= ( ( val > 0 ) ? FACE_DOWN : ( ( val < 0 ) ? FACE_UP : FACE_CURRENT ) );
 }
 
 static void action_stop_down( SystemState &s, int val ) {
-    s.c_vy -= val;
+    s.c.phys.v.y -= val;
     s.c_flags &= ~( ( val > 0 ) ? FACE_DOWN : ( ( val < 0 ) ? FACE_UP : FACE_CURRENT ) );
 }
 
 static void action_start_right( SystemState &s, int val ) {
-    s.c_vx += val;
+    s.c.phys.v.x += val;
     s.c_flags |= ( ( val > 0 ) ? FACE_RIGHT : ( ( val < 0 ) ? FACE_LEFT : FACE_CURRENT ) );
 }
 
 static void action_stop_right( SystemState &s, int val ) {
-    s.c_vx -= val;
+    s.c.phys.v.x -= val;
     s.c_flags &= ~( ( val > 0 ) ? FACE_RIGHT : ( ( val < 0 ) ? FACE_LEFT : FACE_CURRENT ) );
 }
 
 static void action_start_jump( SystemState &s, int val ) {
-    s.c_vy += val;
+    s.c.phys.v.y += val;
     s.c_flags &= ~(FLAGS_ON_GROUND);
     s.jump_sfx.play();
 }
 
 static void action_stop_jump( SystemState &s, int val ) {
-    s.c_vy = 0;
+    s.c.phys.v.y = 0;
     s.c_flags |= FLAGS_ON_GROUND;
 }
 
 static void action_land( SystemState &s, int val ) {
-    s.c_ay = 0;
+    s.c.phys.a.y = 0;
 }
 
 void setup_default_actions( SystemState &s ) {
@@ -272,16 +268,17 @@ void free_resources( SystemState &s ) {
 /**
  * Setup anything that should render before checking keyboard input to accelerate reaction time.
  */
-void prep( SystemState &s ) {
+void prepare_scene( SystemState &s ) {
 
+    // TODO - move into PhysPoint
     switch ( s.c_flags & FLAGS_GRAV_MASK ) {
     case FLAGS_STANDARD_GRAVITY:
-        s.c_ax = 0;
-        s.c_ay = FR_GRAV;
+        s.c.phys.a.x = 0;
+        s.c.phys.a.y = FR_GRAV;
         break;
     case FLAGS_STANDARD_GRAVITY | FLAGS_ON_GROUND:
-        s.c_ax = 0;
-        s.c_ay = 0;
+        s.c.phys.a.x = 0;
+        s.c.phys.a.y = 0;
         break;
     default:
         // Do nothing.
@@ -289,12 +286,11 @@ void prep( SystemState &s ) {
     }
 
     s.c.current_animation->get_next();
-    int delta_x = s.c_vx + s.c_ax / 2;
-    int delta_y = s.c_vy + s.c_ay / 2;
-    s.c_x += delta_x;
-    s.c_y += delta_y;
-    s.c_vx += s.c_ax;
-    s.c_vy += s.c_ay;
+    iv2_t delta = s.c.phys.get_delta(); // To check for collisions and control the camera
+
+    // Handle collision detection here
+
+    s.c.phys.advance(); // To prep for the next frame.
 
     // Camera Tracking
     if ( s.c_flags & FLAGS_CAMERA_TRACKING_MASK ) {
@@ -302,25 +298,25 @@ void prep( SystemState &s ) {
         int cdelta_y = 0;
 
         SDL_Rect & view = s.stage->view();
-        int x = s.c_x - view.x;
-        int y = s.c_x - view.y;
+        int x = s.c.phys.p.x - view.x;
+        int y = s.c.phys.p.x - view.y;
 
         // if x * SF > 3*W/4
-        if ( ( s.c_vx > 0 ) && ( x * SCREEN_RESIZE_FACTOR * 4 > DEFAULT_WIDTH * 3 ) ) {
-            cdelta_x = delta_x;
+        if ( ( s.c.phys.v.x > 0 ) && ( x * SCREEN_RESIZE_FACTOR * 4 > DEFAULT_WIDTH * 3 ) ) {
+            cdelta_x = delta.x;
         }
         // if x * SF < W/4
-        if ( ( s.c_vx < 0 ) && ( x * SCREEN_RESIZE_FACTOR * 4 < DEFAULT_WIDTH ) ) {
-            cdelta_x = delta_x;
+        if ( ( s.c.phys.v.x < 0 ) && ( x * SCREEN_RESIZE_FACTOR * 4 < DEFAULT_WIDTH ) ) {
+            cdelta_x = delta.x;
         }
 
         // if y * SF > 3*H/4
-        if ( ( s.c_vy > 0 ) && ( y * SCREEN_RESIZE_FACTOR * 4 > DEFAULT_HEIGHT * 3 ) ) {
-            cdelta_y = delta_y;
+        if ( ( s.c.phys.v.y > 0 ) && ( y * SCREEN_RESIZE_FACTOR * 4 > DEFAULT_HEIGHT * 3 ) ) {
+            cdelta_y = delta.y;
         }
         // if y * SF < H/4
-        if ( ( s.c_vy < 0 ) && ( y * SCREEN_RESIZE_FACTOR * 4 < DEFAULT_HEIGHT ) ) {
-            cdelta_y = delta_y;
+        if ( ( s.c.phys.v.y < 0 ) && ( y * SCREEN_RESIZE_FACTOR * 4 < DEFAULT_HEIGHT ) ) {
+            cdelta_y = delta.y;
         }
 
         s.stage->move_camera(
@@ -337,7 +333,7 @@ void render( SystemState &s ) {
     Uint32 char_idx = s.c.current_animation->get_current();
     s.stage->render();
     SDL_Rect & view = s.stage->view();
-    s.char_sprites->render(char_idx, s.c_x - view.x, s.c_y - view.y, s.c_f);
+    s.char_sprites->render(char_idx, s.c.phys.p.x - view.x, s.c.phys.p.y - view.y, s.c_f);
     SDL_RenderPresent(s.r);
 }
 
@@ -472,7 +468,7 @@ int main( int argc, char ** argv ) {
 
     while ( s.running ) {
         Uint32 start = SDL_GetTicks();
-        prep( s );
+        prepare_scene( s );
         process_input( s );
         render( s );
         Uint32 stop = SDL_GetTicks();
