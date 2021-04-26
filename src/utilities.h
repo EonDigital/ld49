@@ -13,4 +13,14 @@ template <typename E> void clean_delete( E ** pp_val ) {
     }
 }
 
+template <typename E> E clamp( E low, E val, E high ) {
+    if ( val < low ) {
+        return low;
+    }
+    if ( val > high ) {
+        return high;
+    }
+    return val;
+}
+
 #endif /* SRC_UTILITIES_H_ */

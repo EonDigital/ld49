@@ -9,6 +9,7 @@
 #include "spriteatlas.h"
 #include "sequencer.h"
 #include "utilities.h"
+#include "stage.h"
 
 enum {
     DEFAULT_HEIGHT = 768,
@@ -76,6 +77,7 @@ typedef struct SystemState_s {
     SpriteAtlas * atlas;
     Sprite * world_sprites;
     Sprite * char_sprites;
+    Stage * stage;
 
     KeyMap km;
     int c_x;
@@ -137,27 +139,27 @@ void setup_default_actions( SystemState &s ) {
     km.keys[ACT_UP].key.sym = SDLK_UP;
     km.keys[ACT_UP].action_press = action_start_down;
     km.keys[ACT_UP].action_release = action_stop_down;
-    km.keys[ACT_UP].val = -5;
+    km.keys[ACT_UP].val = -1;
 
     km.keys[ACT_DOWN].key.sym = SDLK_DOWN;
     km.keys[ACT_DOWN].action_press = action_start_down;
     km.keys[ACT_DOWN].action_release = action_stop_down;
-    km.keys[ACT_DOWN].val = 5;
+    km.keys[ACT_DOWN].val = 1;
 
     km.keys[ACT_RIGHT].key.sym = SDLK_RIGHT;
     km.keys[ACT_RIGHT].action_press = action_start_right;
     km.keys[ACT_RIGHT].action_release = action_stop_right;
-    km.keys[ACT_RIGHT].val = 5;
+    km.keys[ACT_RIGHT].val = 1;
 
     km.keys[ACT_LEFT].key.sym = SDLK_LEFT;
     km.keys[ACT_LEFT].action_press = action_start_right;
     km.keys[ACT_LEFT].action_release = action_stop_right;
-    km.keys[ACT_LEFT].val = -5;
+    km.keys[ACT_LEFT].val = -1;
 
     km.keys[ACT_JUMP].key.sym = SDLK_SPACE;
     km.keys[ACT_JUMP].action_press = action_start_jump;
     km.keys[ACT_JUMP].action_release = action_stop_jump;
-    km.keys[ACT_JUMP].val = -25;
+    km.keys[ACT_JUMP].val = -5;
 }
 
 void cleanup_default_actions( SystemState &s ) {
@@ -213,10 +215,21 @@ void process_keyrelease( SystemState &s, const SDL_Keysym & keysym ) {
     }
 }
 
+const char map[] =
+  // 012345678901234567890123456789
+    "                              " // 0
+    "                              " // 1
+    "                              " // 2
+    "                              " // 3
+    "WWWwwwSSSSDDDDDDDD\\       /DDD" // 4
+    "WWWwwSSSSXXXXXXXXXXDDDDDDDXXXX" // 5
+    "WWWSSSSSXXXXXXXXXXXXXXXXXXXXXX"; // 6
+
 void load_resources( SystemState &s ) {
     s.atlas = new SpriteAtlas( s.r, "res/sprites.png" );
     s.world_sprites = new UniformSprite( s.atlas, 16, 16 );
     s.char_sprites = new UniformSprite( s.atlas, 16, 32 );
+    s.stage = new CompleteStage( s.world_sprites, 30, 7, map );
 
     s.jump_sfx.load("res/jump1.ogg");
 }
@@ -320,6 +333,7 @@ void render( SystemState &s ) {
     SDL_RenderClear(s.r);
     // Render the current character sprite.
     Uint32 char_idx = s.c.current_animation->get_current();
+    s.stage->render();
     s.char_sprites->render(char_idx, s.c_x, s.c_y);
     SDL_RenderPresent(s.r);
 }
@@ -355,6 +369,9 @@ int main( int argc, char ** argv ) {
     s.r = SDL_CreateRenderer( s.win, -1, s.r_flags );
     if ( s.r == nullptr ) {
         LOG_ERROR( "Failed to create Renderer %s", SDL_GetError() );
+        s.running = false;
+    } else if( SDL_RenderSetScale( s.r, 4.0f, 4.0f ) ) {
+        LOG_ERROR( "Failed to set the renderer scale %s", SDL_GetError() );
         s.running = false;
     }
 

@@ -8,8 +8,10 @@
 
 #include "images.h"
 
-SpriteAtlas::SpriteAtlas( SDL_Renderer * r, const char * name ) : m_r(r) {
-    load_sheet(name);
+SpriteAtlas::SpriteAtlas( SDL_Renderer * p_r, const char * p_name ) : mp_r(p_r) {
+    if ( p_name && p_r ) {
+        load_sheet(p_name);
+    }
 }
 
 void SpriteAtlas::load_sheet( const char * name ) {
@@ -19,7 +21,7 @@ void SpriteAtlas::load_sheet( const char * name ) {
     }
     // Choose 1 1 1 as a magic invisible color we're unlikely to use anywhere else
     SDL_SetColorKey(surface, true, SDL_MapRGB(surface->format, 1, 1, 1));
-    SDL_Texture * tex = SDL_CreateTextureFromSurface(m_r, surface);
+    SDL_Texture * tex = SDL_CreateTextureFromSurface(mp_r, surface);
     if ( tex ) {
         if ( m_sheet ) {
             SDL_DestroyTexture(m_sheet);
@@ -36,7 +38,13 @@ SpriteAtlas::~SpriteAtlas() {
 }
 
 void SpriteAtlas::render( SDL_Rect & clip, SDL_Rect & dest ) {
-    if ( m_r && m_sheet ) {
-        SDL_RenderCopy(m_r, m_sheet, &clip, &dest);
+    if ( mp_r && m_sheet ) {
+        SDL_RenderCopy(mp_r, m_sheet, &clip, &dest);
     }
 }
+
+SDL_Renderer * SpriteAtlas::renderer() {
+    return mp_r;
+}
+
+SpriteAtlas SpriteAtlas::null_atlas = SpriteAtlas(nullptr, nullptr);

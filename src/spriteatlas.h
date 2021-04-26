@@ -11,16 +11,17 @@
 class SpriteAtlas {
 private:
     SDL_Texture * m_sheet;
-    SDL_Renderer * m_r;
+    SDL_Renderer * mp_r;
 public:
     friend class Sprite;
     friend class UniformSprite;
     SpriteAtlas( SDL_Renderer * r, const char * name );
     void load_sheet( const char * name );
     void render( SDL_Rect &clip, SDL_Rect &dest );
+    SDL_Renderer * renderer();
     ~SpriteAtlas();
+
+    static SpriteAtlas null_atlas;
 };
-
-
 
 #endif /* SRC_SPRITEATLAS_H_ */

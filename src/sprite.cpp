@@ -5,10 +5,6 @@
 
 #include "sprite.h"
 
-
-// Set the size of an artistic pixel, in real pixels.
-enum { SPRITE_SF = 4 };
-
 Sprite::Sprite( SpriteAtlas * p_atlas )
     : mp_atlas(p_atlas)
 {}
@@ -28,9 +24,18 @@ void UniformSprite::render( size_t index, int x, int y ) {
     clip.w = sprite_width;
     clip.h = sprite_height;
 
-    int sf = SPRITE_SF;
-
-    SDL_Rect dest = { x, y, clip.w * sf, clip.h * sf};
+    SDL_Rect dest = { x, y, clip.w, clip.h };
     mp_atlas->render(clip, dest);
 }
 
+SpriteAtlas & Sprite::atlas() {
+    return *mp_atlas;
+}
+
+int UniformSprite::height( size_t index ) {
+    return ( index <= 0xFF ) ? sprite_height : 0;
+}
+
+int UniformSprite::width( size_t index ) {
+    return ( index <= 0xFF ) ? sprite_width : 0;
+}

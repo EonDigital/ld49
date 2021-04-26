@@ -9,13 +9,19 @@
 
 class Sprite {
 protected:
-        class SpriteAtlas * mp_atlas;
+    class SpriteAtlas * mp_atlas;
+
 public:
     Sprite( SpriteAtlas * p_atlas );
 
     virtual void render( size_t index, int x, int y ) = 0;
-
+    virtual int height( size_t index ) = 0;
+    virtual int width( size_t index ) = 0;
     virtual ~Sprite() = default;
+
+    SpriteAtlas & atlas();
+
+
 };
 
 class UniformSprite : public Sprite {
@@ -25,6 +31,8 @@ private:
 public:
     UniformSprite( SpriteAtlas * p_atlas, int width, int height );
     void render( size_t index, int x, int y ) override;
+    int height( size_t index ) override;
+    int width( size_t index ) override;
     virtual ~UniformSprite() = default;
 };
 
