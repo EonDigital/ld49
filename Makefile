@@ -52,7 +52,7 @@ $(EXECS) :
 	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
 	echo Made $@
 
-run_dd :
+run_dd : | $(EXEC_DD)
 	./$(EXEC_DD)
 	
 clean :
