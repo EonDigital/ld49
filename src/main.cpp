@@ -7,6 +7,7 @@
 #include "sprite.h"
 #include "sfx.h"
 #include "spriteatlas.h"
+#include "sequencer.h"
 #include "utilities.h"
 
 enum {
@@ -58,14 +59,10 @@ enum CharMode : Uint32 {
 };
 
 typedef struct {
-    Uint8 base;
-    Uint8 step;
-
-    Uint32 count : 10; ///< The
-    Uint32 idx : 10; ///< The current frame index
-    Uint32 delay : 5; ///< The amount to slow the animation
-    Uint32 ss : 5; ///< The number of steps
-    CharMode mode : 2; ///< The current frame mode
+    Sequencer * current_animation;
+    Sequencer * walk;
+    Sequencer * jump;
+    Sequencer * stand;
 } Char;
 
 typedef struct SystemState_s {
@@ -88,6 +85,9 @@ typedef struct SystemState_s {
     int c_ax;
     int c_ay;
     Char c;
+    struct {
+       Sequencer * growth_animation;
+    } f; // Just a flower for now.
     Sfx jump_sfx;
 } SystemState;
 
@@ -160,12 +160,23 @@ void setup_default_actions( SystemState &s ) {
     km.keys[ACT_JUMP].val = -25;
 }
 
+void cleanup_default_actions( SystemState &s ) {
+    // No-op.  Symmetry to prevent stupid
+}
+
 void setup_default_sprites( SystemState &s ) {
-    s.c.base = 0x61;
-    s.c.step = 0x1;
-    s.c.count = 15;
-    s.c.delay = 16;
-    s.c.mode = CM_LOOP;
+    s.f.growth_animation = new SlowSequencer( 16, new LoopSequencer( 0x61, 0x1, 15 ) );
+    s.c.walk = new SlowSequencer( 6, new LoopSequencer( 0x8, 0x1, 4 ) );
+    s.c.jump = new SlowSequencer( 16, new OneShotSequencer( 0xD, 0x1, 3 ) );
+    s.c.stand = new SlowSequencer( 16, new OneShotSequencer( 0x3, 0x1, 5 ) );
+    s.c.current_animation = s.c.walk;
+}
+
+void cleanup_default_sprites( SystemState &s ) {
+    clean_delete( &s.c.stand );
+    clean_delete( &s.c.jump );
+    clean_delete( &s.c.walk );
+    clean_delete( &s.f.growth_animation );
 }
 
 SystemState s = {0};
@@ -216,44 +227,11 @@ void free_resources( SystemState &s ) {
     clean_delete( &s.atlas );
 }
 
-void step_animation( Char & c ) {
-    if ( ++c.ss < c.delay ) {
-        return;
-    }
-    c.ss = 0;
-    switch ( c.mode ) {
-    case CM_LOOP:
-        if ( ++c.idx >= c.count ) {
-            c.idx = 0;
-        } break;
-
-    case CM_ONE_SHOT:
-        if ( c.idx + 1 < c.count ) {
-            ++c.idx;
-        } break;
-
-    case CM_PING_PONG_UP:
-        if ( c.idx + 1 < c.count ) {
-            ++c.idx;
-        } else {
-            c.mode = CM_PING_PONG_DOWN;
-        } break;
-
-    case CM_PING_PONG_DOWN:
-        if ( c.idx - 1 > 0 ) {
-            --c.idx;
-        } else {
-            --c.idx;
-            c.mode = CM_PING_PONG_UP;
-        }
-    }
-}
-
 /**
  * Setup anything that should render before checking keyboard input to accelerate reaction time.
  */
 void prep( SystemState &s ) {
-    step_animation( s.c );
+    s.c.current_animation->get_next();
     s.c_x += s.c_vx + s.c_ax / 2;
     s.c_y += s.c_vy + s.c_ay / 2;
     s.c_vx += s.c_ax;
@@ -341,7 +319,7 @@ void process_input( SystemState &s ) {
 void render( SystemState &s ) {
     SDL_RenderClear(s.r);
     // Render the current character sprite.
-    Uint32 char_idx = s.c.base + s.c.step * s.c.idx;
+    Uint32 char_idx = s.c.current_animation->get_current();
     s.char_sprites->render(char_idx, s.c_x, s.c_y);
     SDL_RenderPresent(s.r);
 }
@@ -360,8 +338,6 @@ int main( int argc, char ** argv ) {
     s.w_flags = SDL_WINDOW_RESIZABLE;
     s.r_flags = SDL_RENDERER_ACCELERATED; // SDL_RENDERER_PRESENTVSYNC - consider this
     s.running = true;
-    setup_default_actions(s);
-    setup_default_sprites(s);
 
     SDL_SetMainReady();
     if ( SDL_Init( SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_EVENTS | SDL_INIT_AUDIO ) != 0 ) {
@@ -393,6 +369,8 @@ int main( int argc, char ** argv ) {
     }
 
     load_resources( s );
+    setup_default_actions(s);
+    setup_default_sprites(s);
 
     while ( s.running ) {
         Uint32 start = SDL_GetTicks();
@@ -403,6 +381,8 @@ int main( int argc, char ** argv ) {
         throttle( s, stop - start );
     }
 
+    cleanup_default_sprites( s );
+    cleanup_default_actions( s );
     free_resources( s );
 
     if ( audio_setup ) {
