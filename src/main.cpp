@@ -23,6 +23,7 @@ enum {
     GRAVITY = 160, /// 16 pixels ~= 1 meter, 10 meters per second, down is positive.
     FRAMERATE = 60,
     FR_GRAV = GRAVITY / FRAMERATE,
+    FG_PARALLAX = 2,
 };
 
 struct SystemState_s;
@@ -100,6 +101,7 @@ typedef struct SystemState_s {
     Sprite * world_sprites;
     Sprite * char_sprites;
     Stage * stage;
+    Stage * fg;
 
     KeyMap km;
     SDL_RendererFlip c_f;
@@ -248,17 +250,25 @@ const char map[] =
     "abcdefghiSXXXXXXXXXDDDDDDDXXXX" // 5
     "abcdefghiXXXXXXXXXXXXXXXXXXXXX"; // 6
 
+const char fg[] =
+  // 012345678901234567890123456789
+    "             \xAA\xAB\xAC\xAA\xAB            \xAA\xAB\xAC\xAA\xAB " // 0
+    "              \xAD\xAE\xAF              \xAD\xAE\xAF  "; // 1
+
 void load_resources( SystemState &s ) {
     s.atlas = new SpriteAtlas( s.r, "res/sprites.png" );
     s.world_sprites = new UniformSprite( s.atlas, 16, 16 );
     s.char_sprites = new UniformSprite( s.atlas, 16, 32 );
 
     s.stage = new CompleteStage( s.world_sprites, 30, 7, map, 0, 8 );
+    s.fg = new CompleteStage( s.world_sprites, 36, 2, fg, 0, 6 );
 
     s.jump_sfx.load("res/jump1.ogg");
 }
 
 void free_resources( SystemState &s ) {
+    clean_delete( &s.fg );
+    clean_delete( &s.stage );
     clean_delete( &s.char_sprites );
     clean_delete( &s.world_sprites );
     clean_delete( &s.atlas );
@@ -335,6 +345,10 @@ void prepare_scene( SystemState &s ) {
         s.stage->move_camera(
             ( s.c_flags & FLAGS_CAMERA_TRACKING_X ) ? cdelta_x : 0,
             ( s.c_flags & FLAGS_CAMERA_TRACKING_Y ) ? cdelta_y : 0);
+
+        s.fg->move_camera(
+            ( s.c_flags & FLAGS_CAMERA_TRACKING_X ) ? cdelta_x * FG_PARALLAX: 0,
+            ( s.c_flags & FLAGS_CAMERA_TRACKING_Y ) ? cdelta_y * FG_PARALLAX : 0);
     }
 }
 
@@ -347,6 +361,9 @@ void render( SystemState &s ) {
     s.stage->render();
     SDL_Rect & view = s.stage->view();
     s.char_sprites->render(char_idx, s.c.phys.p.x - view.x, s.c.phys.p.y - view.y, s.c_f);
+    // Other sprites
+    s.fg->render();
+    // Any foreground effects
     SDL_RenderPresent(s.r);
 }
 
