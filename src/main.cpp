@@ -244,19 +244,21 @@ void process_keyrelease( SystemState &s, const SDL_Keysym & keysym ) {
 
 const char map[] =
   // 012345678901234567890123456789
-    "                              " // 0
+    "*                             " // 0
     "                              " // 1
     "                              " // 2
     "                              " // 3
-    "WWWwwwSSSSDDDDDDDD\\       /DDD" // 4
-    "WWWwwSSSSXXXXXXXXXXDDDDDDDXXXX" // 5
-    "WWWSSSSSXXXXXXXXXXXXXXXXXXXXXX"; // 6
+    "W\xE1\xE2\xE3\xE4\xD1\xD2\xD3\xD4" "SSDDDDDDD\\       /DDD" // 4
+    "W\xE1\xE2\xE3\xE4\xD1\xD2\xD3\xD4" "SXXXXXXXXXDDDDDDDXXXX" // 5
+    "W\xE1\xE2\xE3\xE4\xD1\xD2\xD3\xD4" "XXXXXXXXXXXXXXXXXXXXX"; // 6
+
 
 void load_resources( SystemState &s ) {
     s.atlas = new SpriteAtlas( s.r, "res/sprites.png" );
     s.world_sprites = new UniformSprite( s.atlas, 16, 16 );
     s.char_sprites = new UniformSprite( s.atlas, 16, 32 );
-    s.stage = new CompleteStage( s.world_sprites, 30, 7, map, 0, 0 );
+
+    s.stage = new CompleteStage( s.world_sprites, 30, 7, map, 0, 8 );
 
     s.jump_sfx.load("res/jump1.ogg");
 }
@@ -299,21 +301,25 @@ void prep( SystemState &s ) {
         int cdelta_x = 0;
         int cdelta_y = 0;
 
+        SDL_Rect & view = s.stage->view();
+        int x = s.c_x - view.x;
+        int y = s.c_x - view.y;
+
         // if x * SF > 3*W/4
-        if ( ( s.c_vx > 0 ) && ( s.c_x * SCREEN_RESIZE_FACTOR * 4 > DEFAULT_WIDTH * 3 ) ) {
+        if ( ( s.c_vx > 0 ) && ( x * SCREEN_RESIZE_FACTOR * 4 > DEFAULT_WIDTH * 3 ) ) {
             cdelta_x = delta_x;
         }
         // if x * SF < W/4
-        if ( ( s.c_vx < 0 ) && ( s.c_x * SCREEN_RESIZE_FACTOR * 4 < DEFAULT_WIDTH ) ) {
+        if ( ( s.c_vx < 0 ) && ( x * SCREEN_RESIZE_FACTOR * 4 < DEFAULT_WIDTH ) ) {
             cdelta_x = delta_x;
         }
 
         // if y * SF > 3*H/4
-        if ( ( s.c_vy > 0 ) && ( s.c_y * SCREEN_RESIZE_FACTOR * 4 > DEFAULT_HEIGHT * 3 ) ) {
+        if ( ( s.c_vy > 0 ) && ( y * SCREEN_RESIZE_FACTOR * 4 > DEFAULT_HEIGHT * 3 ) ) {
             cdelta_y = delta_y;
         }
         // if y * SF < H/4
-        if ( ( s.c_vy < 0 ) && ( s.c_y * SCREEN_RESIZE_FACTOR * 4 < DEFAULT_HEIGHT ) ) {
+        if ( ( s.c_vy < 0 ) && ( y * SCREEN_RESIZE_FACTOR * 4 < DEFAULT_HEIGHT ) ) {
             cdelta_y = delta_y;
         }
 
@@ -330,7 +336,8 @@ void render( SystemState &s ) {
     // Render the current character sprite.
     Uint32 char_idx = s.c.current_animation->get_current();
     s.stage->render();
-    s.char_sprites->render(char_idx, s.c_x - s.stage->x(), s.c_y - s.stage->y(), s.c_f);
+    SDL_Rect & view = s.stage->view();
+    s.char_sprites->render(char_idx, s.c_x - view.x, s.c_y - view.y, s.c_f);
     SDL_RenderPresent(s.r);
 }
 

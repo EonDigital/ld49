@@ -13,15 +13,19 @@ class Stage {
 protected:
     int m_x;
     int m_y;
+    SDL_Rect m_view;
+    int m_off_y;
     Sprite * mp_sprite;
 
 public:
     Stage( Sprite * p_sprite, int x = 0, int y = 0 );
     virtual void move_camera( int delta_x, int delta_y ) = 0;
     virtual void render() = 0;
+    virtual void recalculate_view();
     virtual ~Stage() = default;
     virtual int x();
     virtual int y();
+    virtual SDL_Rect & view();
 };
 
 /// Use this for now to hold the entire stage we build.

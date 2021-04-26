@@ -4,7 +4,7 @@
 
 CXXFLAGS_STD:=-std=c++14
 CXXFLAGS_OPT:=-Os -g --coverage
-CXXFLAGS_WARN:=-Wall -Werror
+CXXFLAGS_WARN:=-Wall -Werror -Wextra -Wno-error=extra -Wunused -Wno-error=unused -Wunused-value -Wno-error=unused-value
 CPPFLAGS_DEPS:=-MMD -MP
 
 DIR_BUILD:=build
@@ -52,7 +52,7 @@ $(EXECS) :
 	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
 	echo Made $@
 
-run_dd : | $(EXEC_DD)
+run_dd : $(EXEC_DD)
 	./$(EXEC_DD)
 	
 clean :
