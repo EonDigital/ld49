@@ -13,7 +13,7 @@ UniformSprite::UniformSprite( SpriteAtlas * p_atlas, int width, int height ) :
     Sprite(p_atlas), sprite_width(width), sprite_height(height) {
 }
 
-void UniformSprite::render( size_t index, int x, int y ) {
+void UniformSprite::render( size_t index, int x, int y, SDL_RendererFlip flip ) {
     if ( !mp_atlas ) { return; }
 
     int s_x = index & 0xF;
@@ -25,7 +25,7 @@ void UniformSprite::render( size_t index, int x, int y ) {
     clip.h = sprite_height;
 
     SDL_Rect dest = { x, y, clip.w, clip.h };
-    mp_atlas->render(clip, dest);
+    mp_atlas->render(clip, dest, flip);
 }
 
 SpriteAtlas & Sprite::atlas() {

@@ -37,9 +37,13 @@ SpriteAtlas::~SpriteAtlas() {
     }
 }
 
-void SpriteAtlas::render( SDL_Rect & clip, SDL_Rect & dest ) {
+void SpriteAtlas::render( SDL_Rect & clip, SDL_Rect & dest, SDL_RendererFlip flip ) {
     if ( mp_r && m_sheet ) {
-        SDL_RenderCopy(mp_r, m_sheet, &clip, &dest);
+        if ( flip == SDL_FLIP_NONE ) {
+            SDL_RenderCopy(mp_r, m_sheet, &clip, &dest);
+        } else {
+            SDL_RenderCopyEx(mp_r, m_sheet, &clip, &dest, 0.0, NULL, flip );
+        }
     }
 }
 

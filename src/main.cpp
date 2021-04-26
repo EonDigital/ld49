@@ -15,6 +15,8 @@ enum {
     DEFAULT_HEIGHT = 768,
     DEFAULT_WIDTH  = 1024,
 
+    SCREEN_RESIZE_FACTOR = 4,
+
     MAX_EVENT_COUNT = 10000, ///< Something obscenely large.  No spinlocks.
 
     GRAVITY = 160, /// 16 pixels ~= 1 meter, 10 meters per second, down is positive.
@@ -66,6 +68,24 @@ typedef struct {
     Sequencer * stand;
 } Char;
 
+typedef uint8_t char_flags_t;
+enum : char_flags_t {
+    FACE_CURRENT = 0,
+    FACE_RIGHT = 1 << 0,
+    FACE_LEFT  = 1 << 1,
+    FACE_UP    = 1 << 2,
+    FACE_DOWN  = 1 << 3,
+    FACE_MASK  = FACE_RIGHT | FACE_LEFT | FACE_UP | FACE_DOWN,
+
+    FLAGS_ON_GROUND = 1 << 4,
+    FLAGS_STANDARD_GRAVITY = 1 << 5,
+    FLAGS_GRAV_MASK = FLAGS_ON_GROUND | FLAGS_STANDARD_GRAVITY,
+
+    FLAGS_CAMERA_TRACKING_X = 1 << 6,
+    FLAGS_CAMERA_TRACKING_Y = 1 << 7,
+    FLAGS_CAMERA_TRACKING_MASK = FLAGS_CAMERA_TRACKING_X | FLAGS_CAMERA_TRACKING_Y,
+};
+
 typedef struct SystemState_s {
     int width;
     int height;
@@ -82,10 +102,12 @@ typedef struct SystemState_s {
     KeyMap km;
     int c_x;
     int c_y;
+    SDL_RendererFlip c_f;
     int c_vx;
     int c_vy;
     int c_ax;
     int c_ay;
+    char_flags_t c_flags;
     Char c;
     struct {
        Sequencer * growth_animation;
@@ -102,29 +124,33 @@ static void action_quit( struct SystemState_s &s, int val ) {
 
 static void action_start_down( SystemState &s, int val ) {
     s.c_vy += val;
+    s.c_flags |= ( ( val > 0 ) ? FACE_DOWN : ( ( val < 0 ) ? FACE_UP : FACE_CURRENT ) );
 }
 
 static void action_stop_down( SystemState &s, int val ) {
     s.c_vy -= val;
+    s.c_flags &= ~( ( val > 0 ) ? FACE_DOWN : ( ( val < 0 ) ? FACE_UP : FACE_CURRENT ) );
 }
 
 static void action_start_right( SystemState &s, int val ) {
     s.c_vx += val;
+    s.c_flags |= ( ( val > 0 ) ? FACE_RIGHT : ( ( val < 0 ) ? FACE_LEFT : FACE_CURRENT ) );
 }
 
 static void action_stop_right( SystemState &s, int val ) {
     s.c_vx -= val;
+    s.c_flags &= ~( ( val > 0 ) ? FACE_RIGHT : ( ( val < 0 ) ? FACE_LEFT : FACE_CURRENT ) );
 }
 
 static void action_start_jump( SystemState &s, int val ) {
-    s.c_vy = val;
-    s.c_ay = FR_GRAV;
+    s.c_vy += val;
+    s.c_flags &= ~(FLAGS_ON_GROUND);
     s.jump_sfx.play();
 }
 
 static void action_stop_jump( SystemState &s, int val ) {
     s.c_vy = 0;
-    s.c_ay = 0;
+    s.c_flags |= FLAGS_ON_GROUND;
 }
 
 static void action_land( SystemState &s, int val ) {
@@ -159,7 +185,7 @@ void setup_default_actions( SystemState &s ) {
     km.keys[ACT_JUMP].key.sym = SDLK_SPACE;
     km.keys[ACT_JUMP].action_press = action_start_jump;
     km.keys[ACT_JUMP].action_release = action_stop_jump;
-    km.keys[ACT_JUMP].val = -5;
+    km.keys[ACT_JUMP].val = -15;
 }
 
 void cleanup_default_actions( SystemState &s ) {
@@ -172,6 +198,7 @@ void setup_default_sprites( SystemState &s ) {
     s.c.jump = new SlowSequencer( 16, new OneShotSequencer( 0xD, 0x1, 3 ) );
     s.c.stand = new SlowSequencer( 16, new OneShotSequencer( 0x3, 0x1, 5 ) );
     s.c.current_animation = s.c.walk;
+    s.c_flags = FLAGS_STANDARD_GRAVITY | FLAGS_ON_GROUND | FLAGS_CAMERA_TRACKING_X;
 }
 
 void cleanup_default_sprites( SystemState &s ) {
@@ -229,7 +256,7 @@ void load_resources( SystemState &s ) {
     s.atlas = new SpriteAtlas( s.r, "res/sprites.png" );
     s.world_sprites = new UniformSprite( s.atlas, 16, 16 );
     s.char_sprites = new UniformSprite( s.atlas, 16, 32 );
-    s.stage = new CompleteStage( s.world_sprites, 30, 7, map );
+    s.stage = new CompleteStage( s.world_sprites, 30, 7, map, 0, 0 );
 
     s.jump_sfx.load("res/jump1.ogg");
 }
@@ -244,11 +271,67 @@ void free_resources( SystemState &s ) {
  * Setup anything that should render before checking keyboard input to accelerate reaction time.
  */
 void prep( SystemState &s ) {
+
+    switch ( s.c_flags & FLAGS_GRAV_MASK ) {
+    case FLAGS_STANDARD_GRAVITY:
+        s.c_ax = 0;
+        s.c_ay = FR_GRAV;
+        break;
+    case FLAGS_STANDARD_GRAVITY | FLAGS_ON_GROUND:
+        s.c_ax = 0;
+        s.c_ay = 0;
+        break;
+    default:
+        // Do nothing.
+        break;
+    }
+
     s.c.current_animation->get_next();
-    s.c_x += s.c_vx + s.c_ax / 2;
-    s.c_y += s.c_vy + s.c_ay / 2;
+    int delta_x = s.c_vx + s.c_ax / 2;
+    int delta_y = s.c_vy + s.c_ay / 2;
+    s.c_x += delta_x;
+    s.c_y += delta_y;
     s.c_vx += s.c_ax;
     s.c_vy += s.c_ay;
+
+    // Camera Tracking
+    if ( s.c_flags & FLAGS_CAMERA_TRACKING_MASK ) {
+        int cdelta_x = 0;
+        int cdelta_y = 0;
+
+        // if x * SF > 3*W/4
+        if ( ( s.c_vx > 0 ) && ( s.c_x * SCREEN_RESIZE_FACTOR * 4 > DEFAULT_WIDTH * 3 ) ) {
+            cdelta_x = delta_x;
+        }
+        // if x * SF < W/4
+        if ( ( s.c_vx < 0 ) && ( s.c_x * SCREEN_RESIZE_FACTOR * 4 < DEFAULT_WIDTH ) ) {
+            cdelta_x = delta_x;
+        }
+
+        // if y * SF > 3*H/4
+        if ( ( s.c_vy > 0 ) && ( s.c_y * SCREEN_RESIZE_FACTOR * 4 > DEFAULT_HEIGHT * 3 ) ) {
+            cdelta_y = delta_y;
+        }
+        // if y * SF < H/4
+        if ( ( s.c_vy < 0 ) && ( s.c_y * SCREEN_RESIZE_FACTOR * 4 < DEFAULT_HEIGHT ) ) {
+            cdelta_y = delta_y;
+        }
+
+        s.stage->move_camera(
+            ( s.c_flags & FLAGS_CAMERA_TRACKING_X ) ? cdelta_x : 0,
+            ( s.c_flags & FLAGS_CAMERA_TRACKING_Y ) ? cdelta_y : 0);
+    }
+}
+
+
+
+void render( SystemState &s ) {
+    SDL_RenderClear(s.r);
+    // Render the current character sprite.
+    Uint32 char_idx = s.c.current_animation->get_current();
+    s.stage->render();
+    s.char_sprites->render(char_idx, s.c_x - s.stage->x(), s.c_y - s.stage->y(), s.c_f);
+    SDL_RenderPresent(s.r);
 }
 
 /**
@@ -329,15 +412,6 @@ void process_input( SystemState &s ) {
     }
 }
 
-void render( SystemState &s ) {
-    SDL_RenderClear(s.r);
-    // Render the current character sprite.
-    Uint32 char_idx = s.c.current_animation->get_current();
-    s.stage->render();
-    s.char_sprites->render(char_idx, s.c_x, s.c_y);
-    SDL_RenderPresent(s.r);
-}
-
 void throttle( SystemState &s, Uint32 ticks ) {
     if ( ticks < 15 ) {
         SDL_Delay(16 - ticks);
@@ -370,7 +444,7 @@ int main( int argc, char ** argv ) {
     if ( s.r == nullptr ) {
         LOG_ERROR( "Failed to create Renderer %s", SDL_GetError() );
         s.running = false;
-    } else if( SDL_RenderSetScale( s.r, 4.0f, 4.0f ) ) {
+    } else if( SDL_RenderSetScale( s.r, SCREEN_RESIZE_FACTOR, SCREEN_RESIZE_FACTOR ) ) {
         LOG_ERROR( "Failed to set the renderer scale %s", SDL_GetError() );
         s.running = false;
     }

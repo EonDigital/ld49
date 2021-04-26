@@ -17,7 +17,7 @@ public:
     friend class UniformSprite;
     SpriteAtlas( SDL_Renderer * r, const char * name );
     void load_sheet( const char * name );
-    void render( SDL_Rect &clip, SDL_Rect &dest );
+    void render( SDL_Rect &clip, SDL_Rect &dest, SDL_RendererFlip flip );
     SDL_Renderer * renderer();
     ~SpriteAtlas();
 

@@ -20,6 +20,8 @@ public:
     virtual void move_camera( int delta_x, int delta_y ) = 0;
     virtual void render() = 0;
     virtual ~Stage() = default;
+    virtual int x();
+    virtual int y();
 };
 
 /// Use this for now to hold the entire stage we build.
