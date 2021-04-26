@@ -29,7 +29,14 @@ void SpriteAtlas::load_sheet( const char * name ) {
 }
 
 SpriteAtlas::~SpriteAtlas() {
+    // We do not own m_r.
     if (m_sheet) {
         SDL_DestroyTexture(m_sheet);
+    }
+}
+
+void SpriteAtlas::render( SDL_Rect & clip, SDL_Rect & dest ) {
+    if ( m_r && m_sheet ) {
+        SDL_RenderCopy(m_r, m_sheet, &clip, &dest);
     }
 }

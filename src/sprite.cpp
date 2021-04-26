@@ -9,21 +9,16 @@
 // Set the size of an artistic pixel, in real pixels.
 enum { SPRITE_SF = 4 };
 
-Sprite::Sprite( SDL_Renderer * r, SpriteAtlas * p_atlas )
-    : m_r(r), mp_atlas(p_atlas)
-{
+Sprite::Sprite( SpriteAtlas * p_atlas )
+    : mp_atlas(p_atlas)
+{}
 
-}
-
-Sprite::~Sprite() {
-}
-
-UniformSprite::UniformSprite( SDL_Renderer * r, SpriteAtlas * p_atlas, int width, int height ) :
-    Sprite(r, p_atlas), sprite_width(width), sprite_height(height) {
+UniformSprite::UniformSprite( SpriteAtlas * p_atlas, int width, int height ) :
+    Sprite(p_atlas), sprite_width(width), sprite_height(height) {
 }
 
 void UniformSprite::render( size_t index, int x, int y ) {
-    if ( !mp_atlas || !mp_atlas->m_sheet ) { return; }
+    if ( !mp_atlas ) { return; }
 
     int s_x = index & 0xF;
     int s_y = (index >> 4) & 0xF;
@@ -36,9 +31,6 @@ void UniformSprite::render( size_t index, int x, int y ) {
     int sf = SPRITE_SF;
 
     SDL_Rect dest = { x, y, clip.w * sf, clip.h * sf};
-
-    SDL_RenderCopy(m_r, mp_atlas->m_sheet, &clip, &dest);
+    mp_atlas->render(clip, dest);
 }
-
-UniformSprite::~UniformSprite() {}
 

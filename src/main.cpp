@@ -7,6 +7,7 @@
 #include "sprite.h"
 #include "sfx.h"
 #include "spriteatlas.h"
+#include "utilities.h"
 
 enum {
     DEFAULT_HEIGHT = 768,
@@ -76,7 +77,9 @@ typedef struct SystemState_s {
     SDL_Renderer * r;
     bool running;
     SpriteAtlas * atlas;
-    Sprite * sprites;
+    Sprite * world_sprites;
+    Sprite * char_sprites;
+
     KeyMap km;
     int c_x;
     int c_y;
@@ -200,23 +203,17 @@ void process_keyrelease( SystemState &s, const SDL_Keysym & keysym ) {
 }
 
 void load_resources( SystemState &s ) {
-    s.atlas = new SpriteAtlas(s.r, "res/sprites.png");
-    s.sprites = new UniformSprite( s.r, s.atlas, 16, 16 );
+    s.atlas = new SpriteAtlas( s.r, "res/sprites.png" );
+    s.world_sprites = new UniformSprite( s.atlas, 16, 16 );
+    s.char_sprites = new UniformSprite( s.atlas, 16, 32 );
 
     s.jump_sfx.load("res/jump1.ogg");
 }
 
 void free_resources( SystemState &s ) {
-
-    if ( s.sprites ) {
-        delete( s.sprites );
-        s.sprites = nullptr;
-    }
-
-    if ( s.atlas ) {
-        delete( s.atlas );
-        s.atlas = nullptr;
-    }
+    clean_delete( &s.char_sprites );
+    clean_delete( &s.world_sprites );
+    clean_delete( &s.atlas );
 }
 
 void step_animation( Char & c ) {
@@ -345,7 +342,7 @@ void render( SystemState &s ) {
     SDL_RenderClear(s.r);
     // Render the current character sprite.
     Uint32 char_idx = s.c.base + s.c.step * s.c.idx;
-    s.sprites->render(char_idx, s.c_x, s.c_y);
+    s.char_sprites->render(char_idx, s.c_x, s.c_y);
     SDL_RenderPresent(s.r);
 }
 
