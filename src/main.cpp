@@ -78,6 +78,8 @@ enum : char_flags_t {
     FACE_LEFT  = 1 << 1,
     FACE_UP    = 1 << 2,
     FACE_DOWN  = 1 << 3,
+    FACE_HORIZ = FACE_LEFT | FACE_RIGHT,
+    FACE_VERT = FACE_UP | FACE_DOWN,
     FACE_MASK  = FACE_RIGHT | FACE_LEFT | FACE_UP | FACE_DOWN,
 
     FLAGS_ON_GROUND = 1 << 4,
@@ -360,7 +362,12 @@ void render( SystemState &s ) {
     Uint32 char_idx = s.c.current_animation->get_current();
     s.stage->render();
     SDL_Rect & view = s.stage->view();
-    s.char_sprites->render(char_idx, s.c.phys.p.x - view.x, s.c.phys.p.y - view.y, s.c_f);
+
+    switch ( s.c_flags & FACE_HORIZ ) {
+    case FACE_LEFT: s.c_f = SDL_FLIP_HORIZONTAL; break;
+    case FACE_RIGHT: s.c_f = SDL_FLIP_NONE;      break;
+    }
+    s.char_sprites->render(char_idx, s.c.phys.p.x - view.x, s.c.phys.p.y - view.y, s.c_f );
     // Other sprites
     s.fg->render();
     // Any foreground effects
