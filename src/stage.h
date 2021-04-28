@@ -28,7 +28,7 @@ public:
     virtual int x();
     virtual int y();
     virtual SDL_Rect & view();
-    virtual bool test_collision( SDL_Rect & r, iv2_t & delta ) = 0;
+    virtual bool test_collision( SDL_Rect & rect, iv2_t & delta, iv2_t * vb_normal ) = 0;
 };
 
 /// Use this for now to hold the entire stage we build.
@@ -43,7 +43,7 @@ public:
     CompleteStage( Sprite * p_sprite, size_t width, size_t height, const char * data, int x = 0, int y = 0 );
     void move_camera( int delta_x, int delta_y ) override;
     void render() override;
-    bool test_collision( SDL_Rect & r, iv2_t & delta ) override;
+    bool test_collision( SDL_Rect & rect, iv2_t & delta, iv2_t * vb_normal ) override;
     virtual ~CompleteStage() = default;
 };
 

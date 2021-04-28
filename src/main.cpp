@@ -123,22 +123,18 @@ static void action_quit( struct SystemState_s &s, int val ) {
 }
 
 static void action_start_down( SystemState &s, int val ) {
-    s.c.phys.v.y += val;
     s.c_flags |= ( ( val > 0 ) ? FACE_DOWN : ( ( val < 0 ) ? FACE_UP : FACE_CURRENT ) );
 }
 
 static void action_stop_down( SystemState &s, int val ) {
-    s.c.phys.v.y -= val;
     s.c_flags &= ~( ( val > 0 ) ? FACE_DOWN : ( ( val < 0 ) ? FACE_UP : FACE_CURRENT ) );
 }
 
 static void action_start_right( SystemState &s, int val ) {
-    s.c.phys.v.x += val;
     s.c_flags |= ( ( val > 0 ) ? FACE_RIGHT : ( ( val < 0 ) ? FACE_LEFT : FACE_CURRENT ) );
 }
 
 static void action_stop_right( SystemState &s, int val ) {
-    s.c.phys.v.x -= val;
     s.c_flags &= ~( ( val > 0 ) ? FACE_RIGHT : ( ( val < 0 ) ? FACE_LEFT : FACE_CURRENT ) );
 }
 
@@ -283,18 +279,33 @@ void prepare_scene( SystemState &s ) {
 
     // TODO - move into PhysPoint
     switch ( s.c_flags & FLAGS_GRAV_MASK ) {
+    case FLAGS_STANDARD_GRAVITY | FLAGS_ON_GROUND:
+//            s.c.phys.a.x = 0;
+//            s.c.phys.a.y = 0;
+//            break;
     case FLAGS_STANDARD_GRAVITY:
         s.c.phys.a.x = 0;
         s.c.phys.a.y = FR_GRAV;
-        break;
-    case FLAGS_STANDARD_GRAVITY | FLAGS_ON_GROUND:
-        s.c.phys.a.x = 0;
-        s.c.phys.a.y = 0;
         break;
     default:
         // Do nothing.
         break;
     }
+
+    enum { WALK_SPEED = 2 };
+
+    iv2_t speed = {0};
+    switch ( s.c_flags & FACE_HORIZ ) {
+    case FACE_LEFT: speed.x = -WALK_SPEED; break;
+    case FACE_RIGHT: speed.x = WALK_SPEED; break;
+    }
+    switch ( s.c_flags & FACE_VERT ) {
+    case FACE_UP: speed.y = -WALK_SPEED; break;
+    case FACE_DOWN: speed.y = WALK_SPEED; break;
+    }
+
+    s.c.phys.v.x = ( s.c.phys.v.x + speed.x ) / 2;
+//    s.c.phys.v.y = ( s.c.phys.v.y + speed.y ) / 2;
 
 //    int dt = 256 / FRAMERATE;
     int dt = 256;
@@ -304,15 +315,23 @@ void prepare_scene( SystemState &s ) {
 
     // Handle collision detection here
     SDL_Rect char_rect = { s.c.phys.p.x, s.c.phys.p.y, s.char_sprites->width(0), s.char_sprites->height(0) };
-    bool collision = s.stage->test_collision( char_rect, delta );
+    iv2_t vb_normal = {0,0};
+
+    bool collision = s.stage->test_collision( char_rect, delta, &vb_normal );
 
     // To prep for the next frame.
     if ( collision ) {
         action_land(s, 0); // XXX - nominally, we reduce velocity relative to our impact direction.  We have artifacts when moving and jumping.
-        s.c.phys.v.x = 0;
-        s.c.phys.v.y = 0;
+        if ( vb_normal.x != 0 ) {
+            s.c.phys.v.x = 0;
+        }
+        if ( vb_normal.y != 0 ) {
+            s.c.phys.v.y = 0;
+        }
+        if ( vb_normal.y < 0 ) {
+            s.c_flags |= FLAGS_ON_GROUND;
+        }
         s.c.phys.p += delta;
-        s.c_flags |= FLAGS_ON_GROUND;
     } else {
         s.c.phys.advance( dt );
     }

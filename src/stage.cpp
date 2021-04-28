@@ -117,7 +117,7 @@ static bool can_collide( char tile ) {
 }
 
 
-bool CompleteStage::test_collision( SDL_Rect & rect, iv2_t & delta ) {
+bool CompleteStage::test_collision( SDL_Rect & rect, iv2_t & delta, iv2_t * vb_normal ) {
     // TODO Find a better place to manage collision detection
     SDL_Rect tile = {
          0, 0, mp_sprite->width(0), mp_sprite->height(0)
@@ -164,7 +164,7 @@ bool CompleteStage::test_collision( SDL_Rect & rect, iv2_t & delta ) {
                 continue;
             }
             tile.x = x;
-            collision |= collision_aabb_aabb_dt( rect, tile, delta );
+            collision |= collision_aabb_aabb_dt( rect, tile, delta, vb_normal );
         }
     }
     return collision;

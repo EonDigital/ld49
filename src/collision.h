@@ -22,8 +22,9 @@ bool collision_aabb_aabb( SDL_Rect & one, SDL_Rect & two );
  * @param a
  * @param b
  * @param va_rel_vb in: the distance a moves relative to b, out: the distance a can move before a collision.
+ * @param vb_normal optional, the orientation of the impact surface
  * @return true if there is a collision within va_rel_vb
  */
-bool collision_aabb_aabb_dt( SDL_Rect & a, SDL_Rect & b, iv2_s & va_rel_vb );
+bool collision_aabb_aabb_dt( SDL_Rect & a, SDL_Rect & b, iv2_t & va_rel_vb, iv2_t * vb_normal = NULL );
 
 #endif /* SRC_COLLISION_H_ */
